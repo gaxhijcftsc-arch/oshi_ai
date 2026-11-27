@@ -15,7 +15,8 @@ nav button.on{background:var(--ac2);color:var(--ac)}
 section{display:none;flex:1;min-height:0;flex-direction:column}
 section.on{display:flex}
 .scroll{flex:1;overflow-y:auto;padding:12px}
-#log{display:flex;flex-direction:column;gap:10px}
+#sc{display:flex;flex-direction:column}
+#log{display:flex;flex-direction:column;gap:10px;margin-top:auto;flex-shrink:0}
 .m{max-width:82%;padding:9px 13px;border-radius:18px;white-space:pre-wrap;word-break:break-word}
 .m.u{align-self:flex-end;background:var(--ac);color:#fff;border-bottom-right-radius:4px}
 .m.a{align-self:flex-start;background:var(--sf);border:1px solid var(--bd);border-bottom-left-radius:4px}
@@ -142,7 +143,7 @@ async function fillModels(){
     const ls=w.prebuiltAppConfig.model_list.filter(m=>/qwen|gemma|llama-3\.2|phi|smol/i.test(m.model_id)&&/q4/.test(m.model_id)&&!/embed/i.test(m.model_id)&&m.vram_required_MB&&m.vram_required_MB<5000).sort((a,b)=>a.vram_required_MB-b.vram_required_MB);
     const sel=$('#lmodel');sel.textContent='';
     for(const m of ls){const o=document.createElement('option');o.value=m.model_id;o.textContent=m.model_id.replace(/-MLC$/,'')+'(メモリ約'+(m.vram_required_MB/1000).toFixed(1)+'GB)';sel.appendChild(o)}
-    const pref=localStorage.getItem('lm')||(ls.find(m=>/Qwen2\.5-1\.5B-Instruct-q4f16/.test(m.model_id))||ls[0]||{}).model_id;if(pref)sel.value=pref;
+    const mob=/iPhone|iPad|Android/i.test(navigator.userAgent);const pref=localStorage.getItem('lm')||(ls.find(m=>new RegExp(mob?'Qwen2\\.5-0\\.5B-Instruct-q4f16':'Qwen2\\.5-1\\.5B-Instruct-q4f16').test(m.model_id))||ls[0]||{}).model_id;if(pref)sel.value=pref;
   }catch(e){$('#lstat').textContent='モデル一覧を取得できません(ネット接続を確認)'}
 }
 const callAI=(...a)=>local()?callLocal(...a):callClaude(...a);
@@ -159,17 +160,17 @@ async function callClaude(system,messages,onText,max=400){
 
 /* ---- chat ---- */
 function addMsg(r,t){const d=document.createElement('div');d.className='m '+(r==='user'?'u':'a');d.textContent=t;$('#log').appendChild(d);$('#sc').scrollTop=1e9;return d}
-function renderLog(){$('#log').textContent='';if(!hist.length)addMsg('assistant','おはなししよー！🥹');hist.forEach(m=>addMsg(m.role,m.content))}
+function renderLog(){$('#log').textContent='';if(!hist.length)addMsg('assistant','おはなししよー！🥹').classList.add('greet');hist.forEach(m=>addMsg(m.role,m.content))}
 function refText(){let s='';for(const m of mats){if(m.text){const l='['+(m.label||'素材')+'] '+m.text.trim()+'\n';if((s+l).length>(local()?1200:8000))break;s+=l}}return s||'(まだ素材なし)'}
 async function send(){
   const v=$('#in').value.trim();if(!v||busy)return;busy=true;$('#in').value='';
-  if(!hist.length)$('#log').textContent='';
+  document.querySelectorAll('.greet').forEach(x=>x.remove());
   hist.push({role:'user',content:v});addMsg('user',v);const bub=addMsg('assistant','…');
   const sys=[{type:'text',cache_control:{type:'ephemeral'},text:persona+'\n\n# 本人の実際の投稿・発言の例(口調の参考。内容を事実として断定しない)\n'+refText()+'\n\n# 指示\n上記のキャラとして、返信の本文だけを出力する。'}];
   let msgs=hist.slice(local()?-10:-30);if(local()&&!eng)bub.textContent='モデルを読み込み中…(初回は数分かかります)';while(msgs.length&&msgs[0].role!=='user')msgs.shift();
   try{const t=await callAI(sys,msgs,x=>{bub.textContent=x;$('#sc').scrollTop=1e9});
     bub.textContent=t;hist.push({role:'assistant',content:t});kvSet('hist',hist.slice(-60));speak(t)}
-  catch(e){hist.pop();bub.textContent='うまく送れなかったよ🥹\n'+e.message}
+  catch(e){hist.pop();$('#in').value=v;if(local()){eng=null;engId=''}bub.textContent='うまく送れなかったよ🥹\n'+e.message+(local()?'\n(端末のメモリ不足の可能性があります。設定で一覧の上のほうの小さいモデルを選ぶか、PCで試してね)':'')}
   busy=false;
 }
 $('#send').onclick=send;
